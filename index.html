@@ -49,6 +49,11 @@ th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;verti
 th{background:#f1f5f9;position:sticky;top:0;white-space:nowrap}
 .tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;white-space:nowrap}
 .t-ok{background:#dcfce7;color:#166534}.t-wait{background:#fef3c7;color:#92400e}.t-bad{background:#fee2e2;color:#991b1b}.t-no{background:#e5e7eb;color:#374151}
+.skip{display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:14px;font-weight:400;line-height:1.5}
+.skip input{width:18px;height:18px;margin-top:2px;flex:none}
+.hits{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.hits button{text-align:left;background:#fff;color:var(--ink);border:1px solid var(--line);font-size:15px}
+.hits button:hover{background:#eff6ff;border-color:var(--pri)}
 .hide{display:none}
 </style>
 </head>
@@ -61,8 +66,10 @@ th{background:#f1f5f9;position:sticky;top:0;white-space:nowrap}
   <div class="card">
     <label for="empId">工號</label>
     <input type="text" id="empId" inputmode="numeric" autocomplete="off" placeholder="請輸入工號">
+    <div class="note">不知道工號？可直接在下方「姓名」欄輸入姓名查詢。</div>
     <label for="hName">姓名</label>
-    <input type="text" id="hName" readonly placeholder="輸入工號後自動帶入">
+    <input type="text" id="hName" autocomplete="off" placeholder="輸入工號後自動帶入，或直接輸入姓名">
+    <div id="nameHits" class="hits"></div>
     <label for="hDept">部門</label>
     <input type="text" id="hDept" readonly placeholder="輸入工號後自動帶入">
     <div id="hMsg"></div>
@@ -72,6 +79,7 @@ th{background:#f1f5f9;position:sticky;top:0;white-space:nowrap}
     </div>
     <div class="actions">
       <button id="btnGo" disabled>下一步：填寫資料</button>
+      <button id="btnReset" class="sec">重新查詢</button>
       <button id="btnAdmin" class="sec hide">人資管理</button>
     </div>
   </div>
@@ -94,6 +102,7 @@ th{background:#f1f5f9;position:sticky;top:0;white-space:nowrap}
       <button type="button" class="sec sm" id="btnOtp">寄送驗證碼</button>
       <span id="mailState" class="note"></span>
     </div>
+    <label class="skip"><input type="checkbox" id="skipVerify"><span>暫時跳過驗證（收不到驗證碼，或之後再驗證）。系統會將此 MAIL 標註為「未驗證」，人資之後會另寄確認信。</span></label>
     <div id="otpRow" class="row hide" style="margin-top:8px">
       <input type="text" id="otpCode" inputmode="numeric" maxlength="6" placeholder="輸入 6 位數驗證碼">
       <button type="button" class="sm" id="btnVerify">驗證</button>
@@ -193,7 +202,10 @@ let lookupTimer = null, lookupSeq = 0;
 function resetHome() {
   S.found = false; S.record = null; S.isAdmin = false; S.isNew = false;
   $('hName').value = ''; $('hDept').value = '';
-  $('hName').readOnly = true; $('hDept').readOnly = true;
+  $('hName').readOnly = false; $('hDept').readOnly = true;
+  $('hName').placeholder = '輸入工號後自動帶入，或直接輸入姓名';
+  $('hDept').placeholder = '輸入工號後自動帶入';
+  $('nameHits').innerHTML = ''; clearTimeout(nameTimer); nameSeq++;
   $('newBox').classList.add('hide'); $('newCk').checked = false;
   $('btnAdmin').classList.add('hide');
   msg($('hMsg'), '', ''); updateGo();
@@ -205,9 +217,10 @@ function updateGo() {
 }
 $('empId').addEventListener('input', () => {
   clearTimeout(lookupTimer);
+  const typedName = $('hName').value;   // 保留已輸入的姓名，避免打到一半被清掉
   resetHome();
   const id = $('empId').value.trim();
-  if (id.length < 3) return;
+  if (id.length < 3) { $('hName').value = typedName; return; }
   lookupTimer = setTimeout(() => doLookup(id), 450);
 });
 async function doLookup(id) {
@@ -220,6 +233,7 @@ async function doLookup(id) {
     if (r.found) {
       S.found = true; S.name = r.name; S.dept = r.dept; S.record = r.record; S.isAdmin = !!r.isAdmin;
       $('hName').value = r.name; $('hDept').value = r.dept;
+      $('hName').readOnly = true; $('nameHits').innerHTML = '';
       msg($('hMsg'), 'ok', r.record ? '已有建檔資料，進入後可更新。' : '尚未填寫，請繼續填寫資料。');
       $('btnAdmin').classList.toggle('hide', !(r.isAdmin && id === CONFIG.ADMIN_ID));
     } else {
@@ -231,13 +245,55 @@ async function doLookup(id) {
 }
 $('newCk').addEventListener('change', () => {
   S.isNew = $('newCk').checked;
-  $('hName').readOnly = !S.isNew; $('hDept').readOnly = !S.isNew;
-  $('hName').placeholder = S.isNew ? '請輸入姓名' : '輸入工號後自動帶入';
+  $('hDept').readOnly = !S.isNew;
+  $('nameHits').innerHTML = '';
+  $('hName').placeholder = S.isNew ? '請輸入姓名' : '輸入工號後自動帶入，或直接輸入姓名';
   $('hDept').placeholder = S.isNew ? '請輸入部門' : '輸入工號後自動帶入';
   updateGo();
 });
+
+/* 以姓名查詢：輸入至少 2 個字，停頓後自動查詢 */
+let nameTimer = null, nameSeq = 0;
+$('hName').addEventListener('input', () => {
+  if (S.found || S.isNew) return;
+  clearTimeout(nameTimer); nameSeq++;
+  $('nameHits').innerHTML = ''; msg($('hMsg'), '', '');
+  const n = $('hName').value.trim();
+  if (n.replace(/\s/g, '').length < 2) return;
+  nameTimer = setTimeout(() => doNameLookup(n), 500);
+});
+async function doNameLookup(n) {
+  const seq = ++nameSeq;
+  msg($('hMsg'), 'info', '查詢中…');
+  try {
+    const r = await api('lookupName', { name: n });
+    if (seq !== nameSeq) return;
+    if (r.matches.length === 1) { pickPerson(r.matches[0]); return; }
+    if (r.matches.length > 1) {
+      msg($('hMsg'), 'info', '找到多筆，請點選您本人：');
+      const box = $('nameHits'); box.innerHTML = '';
+      r.matches.forEach(m => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = m.name + '　｜　' + m.dept + '　｜　工號 ' + m.empId;
+        b.onclick = () => pickPerson(m);
+        box.appendChild(b);
+      });
+      return;
+    }
+    $('newBox').classList.remove('hide');
+    msg($('hMsg'), 'err', r.tooMany ? '符合的人數較多，請輸入完整姓名，或直接輸入工號。' : '查無此姓名。請確認姓名，或改輸入工號；仍查無可勾選「新建」自行建立。');
+  } catch (e) { if (seq === nameSeq) msg($('hMsg'), 'err', e.message); }
+}
+function pickPerson(m) {
+  $('nameHits').innerHTML = '';
+  $('empId').value = m.empId;
+  doLookup(m.empId);
+}
 ['hName', 'hDept'].forEach(i => $(i).addEventListener('input', updateGo));
 $('empId').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(lookupTimer); const id = $('empId').value.trim(); if (id) doLookup(id); } });
+
+$('btnReset').onclick = () => { $('empId').value = ''; resetHome(); $('empId').focus(); };
 
 $('btnGo').onclick = () => {
   S.id = $('empId').value.trim();
@@ -258,7 +314,9 @@ function openForm() {
   verifiedMail = '';
   $('btnSave').textContent = rec ? '更新' : '送出';
   $('otpRow').classList.add('hide'); $('otpCode').value = '';
+  $('skipVerify').checked = false;
   msg($('fMsg'), '', ''); clearBad(); refreshMailState();
+  if (rec && rec.status !== '已驗證') msg($('fMsg'), 'info', '您上次填寫的個人MAIL 尚未驗證，建議此次完成驗證。');
   show('v-form');
 }
 function clearBad() { ['fPhone', 'fAddr', 'fMail'].forEach(i => $(i).classList.remove('bad')); }
@@ -269,11 +327,17 @@ function mailOk() {
 function refreshMailState() {
   const m = $('fMail').value.trim();
   const st = $('mailState');
+  const skip = $('skipVerify').checked;
   if (!m) { st.textContent = ''; st.style.color = ''; }
   else if (mailOk()) { st.textContent = '✔ 此 MAIL 已驗證'; st.style.color = 'var(--ok)'; }
+  else if (skip) { st.textContent = '⚠ 已選擇跳過驗證，此 MAIL 將標註為「未驗證」'; st.style.color = 'var(--warn)'; }
   else { st.textContent = '尚未驗證，請按「寄送驗證碼」'; st.style.color = 'var(--warn)'; }
-  $('btnOtp').disabled = !MAIL_RE.test(m) || mailOk();
+  $('btnOtp').disabled = !MAIL_RE.test(m) || mailOk() || skip;
 }
+$('skipVerify').addEventListener('change', () => {
+  if ($('skipVerify').checked) $('otpRow').classList.add('hide');
+  refreshMailState();
+});
 $('fMail').addEventListener('input', () => { $('otpRow').classList.add('hide'); refreshMailState(); });
 
 let otpCool = 0;
@@ -311,15 +375,17 @@ $('btnSave').onclick = async () => {
   if (miss.length) return msg($('fMsg'), 'err', '請填寫下列欄位後再' + $('btnSave').textContent + '：' + miss.join('、'));
   if (!PHONE_RE.test(phone)) { $('fPhone').classList.add('bad'); return msg($('fMsg'), 'err', '手機格式應為 09 開頭共 10 碼'); }
   if (!MAIL_RE.test(mail)) { $('fMail').classList.add('bad'); return msg($('fMsg'), 'err', '個人MAIL 格式不正確'); }
-  if (!mailOk()) { $('fMail').classList.add('bad'); return msg($('fMsg'), 'err', '請先完成個人MAIL 驗證（按「寄送驗證碼」並輸入收到的驗證碼）'); }
+  const skip = $('skipVerify').checked && !mailOk();
+  if (!mailOk() && !skip) { $('fMail').classList.add('bad'); return msg($('fMsg'), 'err', '請先完成個人MAIL 驗證（按「寄送驗證碼」並輸入收到的驗證碼），或勾選「暫時跳過驗證」'); }
   $('btnSave').disabled = true;
   try {
-    const r = await api('save', { empId: S.id, name: S.name, dept: S.dept, phone, addr, mail });
-    S.record = { phone, addr, mail, status: '已驗證' };
+    const r = await api('save', { empId: S.id, name: S.name, dept: S.dept, phone, addr, mail, skipVerify: skip });
+    S.record = { phone, addr, mail, status: r.status };
     S.found = true;
     $('btnSave').textContent = '更新';
-    msg($('fMsg'), 'ok', r.updated ? '✔ 資料已更新完成。' : '✔ 資料已送出完成，謝謝您。');
-    savedVerifiedMail = mail.toLowerCase();
+    const done = r.updated ? '✔ 資料已更新完成。' : '✔ 資料已送出完成，謝謝您。';
+    if (r.status === '已驗證') { msg($('fMsg'), 'ok', done); savedVerifiedMail = mail.toLowerCase(); }
+    else msg($('fMsg'), 'info', done + ' 但個人MAIL 目前為「' + r.status + '」，人資之後會寄確認信，請留意信箱（含垃圾郵件匣）。');
   } catch (e) { msg($('fMsg'), 'err', e.message); }
   $('btnSave').disabled = false;
 };
