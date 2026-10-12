@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>人事資料建檔及更新_資訊填寫</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1f2937;--sub:#6b7280;--line:#d9dee5;--pri:#1d4ed8;--pri-d:#1e3a8a;--ok:#15803d;--warn:#b45309;--err:#b91c1c;--ro:#eef1f5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.5}
+header{background:var(--pri-d);color:#fff;padding:16px 20px}
+header h1{margin:0;font-size:19px;font-weight:600}
+main{max-width:720px;margin:20px auto;padding:0 16px 60px}
+main.wide{max-width:1100px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:22px;margin-bottom:16px}
+label{display:block;font-weight:600;margin:14px 0 4px;font-size:15px}
+input[type=text],input[type=tel],input[type=email],input[type=password],input[type=search],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:6px;font-size:16px;font-family:inherit;background:#fff}
+input:focus,textarea:focus{outline:2px solid #93b4ff;border-color:var(--pri)}
+input[readonly]{background:var(--ro);color:#374151}
+.bad{border-color:var(--err)!important;background:#fff5f5!important}
+.note{font-size:13px;color:var(--sub);margin-top:4px}
+.note.warn{color:var(--warn)}
+.msg{padding:10px 12px;border-radius:6px;margin-top:14px;font-size:14px}
+.msg.err{background:#fef2f2;color:var(--err);border:1px solid #fecaca}
+.msg.ok{background:#f0fdf4;color:var(--ok);border:1px solid #bbf7d0}
+.msg.info{background:#eff6ff;color:var(--pri-d);border:1px solid #bfdbfe}
+button{font-family:inherit;font-size:16px;border:0;border-radius:6px;padding:10px 18px;cursor:pointer;background:var(--pri);color:#fff}
+button:hover{background:var(--pri-d)}
+button:disabled{background:#9ca3af;cursor:not-allowed}
+button.sec{background:#fff;color:var(--pri);border:1px solid var(--pri)}
+button.sec:hover{background:#eff6ff}
+button.sm{font-size:13px;padding:5px 10px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>input{flex:1;min-width:160px}
+.newbox{margin-top:14px;padding:12px;border:1px dashed var(--pri);border-radius:8px;background:#f8faff}
+.newbox label.ck{display:flex;gap:8px;align-items:center;margin:0;font-weight:600}
+.newbox input[type=checkbox]{width:18px;height:18px}
+.actions{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tabs button{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.tabs button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.stat b{display:block;font-size:24px}
+.stat span{font-size:13px;color:var(--sub)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:820px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#f1f5f9;position:sticky;top:0;white-space:nowrap}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;white-space:nowrap}
+.t-ok{background:#dcfce7;color:#166534}.t-wait{background:#fef3c7;color:#92400e}.t-bad{background:#fee2e2;color:#991b1b}.t-no{background:#e5e7eb;color:#374151}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header><h1>人事資料建檔及更新_資訊填寫</h1></header>
+<main id="main">
+
+<!-- 首頁 -->
+<section id="v-home">
+  <div class="card">
+    <label for="empId">工號</label>
+    <input type="text" id="empId" inputmode="numeric" autocomplete="off" placeholder="請輸入工號">
+    <label for="hName">姓名</label>
+    <input type="text" id="hName" readonly placeholder="輸入工號後自動帶入">
+    <label for="hDept">部門</label>
+    <input type="text" id="hDept" readonly placeholder="輸入工號後自動帶入">
+    <div id="hMsg"></div>
+    <div id="newBox" class="newbox hide">
+      <label class="ck"><input type="checkbox" id="newCk"> 新建</label>
+      <div class="note">若查無工號，可自行建立</div>
+    </div>
+    <div class="actions">
+      <button id="btnGo" disabled>下一步：填寫資料</button>
+      <button id="btnAdmin" class="sec hide">人資管理</button>
+    </div>
+  </div>
+</section>
+
+<!-- 填寫頁 -->
+<section id="v-form" class="hide">
+  <div class="card">
+    <label>部門</label><input type="text" id="fDept" readonly>
+    <label>工號</label><input type="text" id="fId" readonly>
+    <label>姓名</label><input type="text" id="fName" readonly>
+    <label for="fPhone">手機 <span style="color:var(--err)">*</span></label>
+    <input type="tel" id="fPhone" inputmode="numeric" maxlength="12" placeholder="0912345678">
+    <label for="fAddr">通訊地址 <span style="color:var(--err)">*</span></label>
+    <input type="text" id="fAddr" placeholder="縣市、區、路街、號、樓">
+    <label for="fMail">個人MAIL <span style="color:var(--err)">*</span></label>
+    <input type="email" id="fMail" placeholder="name@example.com">
+    <div class="note warn">⚠ 此為「薪資電子檔」收件MAIL，建議填寫私人信箱。</div>
+    <div class="row" style="margin-top:10px">
+      <button type="button" class="sec sm" id="btnOtp">寄送驗證碼</button>
+      <span id="mailState" class="note"></span>
+    </div>
+    <div id="otpRow" class="row hide" style="margin-top:8px">
+      <input type="text" id="otpCode" inputmode="numeric" maxlength="6" placeholder="輸入 6 位數驗證碼">
+      <button type="button" class="sm" id="btnVerify">驗證</button>
+    </div>
+    <div id="fMsg"></div>
+    <div class="actions">
+      <button id="btnSave">送出</button>
+      <button id="btnBack" class="sec">返回首頁</button>
+    </div>
+  </div>
+</section>
+
+<!-- 人資管理 -->
+<section id="v-admin" class="hide">
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <b>人資管理　<span id="aWho" class="note"></span></b>
+      <button class="sec sm" id="aBack">返回首頁</button>
+    </div>
+    <div class="stats" id="aStats"></div>
+    <div class="tabs" id="aTabs">
+      <button data-f="all" class="on">全部</button>
+      <button data-f="done">已填</button>
+      <button data-f="todo">未填</button>
+      <button data-f="unv">MAIL 未確認</button>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <input type="search" id="aSearch" placeholder="搜尋工號 / 姓名 / 部門">
+      <button class="sec sm" id="aCsv">匯出 CSV</button>
+    </div>
+    <div class="card" style="background:#f8fafc;margin-bottom:12px">
+      <b>員工 MAIL 測試</b>
+      <div class="note" style="margin-bottom:8px">系統寄出確認信，員工點擊信中連結後，狀態變為「已驗證」。員工自行填寫時已通過驗證碼驗證者，也會顯示「已驗證」。</div>
+      <div class="row">
+        <button class="sm" id="aSendSel">寄測試信給已勾選者</button>
+        <button class="sm sec" id="aSendUnv">寄給所有「未確認」者</button>
+        <button class="sm sec" id="aBounce">檢查退信</button>
+        <span class="note" id="aQuota"></span>
+      </div>
+    </div>
+    <div id="aMsg"></div>
+    <div class="tw"><table>
+      <thead><tr><th><input type="checkbox" id="aAll"></th><th>工號</th><th>姓名</th><th>部門</th><th>手機</th><th>通訊地址</th><th>個人MAIL</th><th>MAIL狀態</th><th>更新時間</th></tr></thead>
+      <tbody id="aBody"></tbody>
+    </table></div>
+  </div>
+</section>
+</main>
+
+<script>
+/* ===== 設定：部署 Apps Script 後，將網頁應用程式網址貼在這裡 ===== */
+const CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbwz-tOjpnGXRBrh2VBQEgAbXiOjWEEBdqVjDmry_8dci6xTsZ2iPUCMlpbexWsZW6yf-w/exec', ADMIN_ID: '7003001' };
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_RE = /^09\d{8}$/;
+
+async function api(action, payload) {
+  const r = await fetch(CONFIG.API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ action }, payload || {}))
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || '發生錯誤');
+  return j;
+}
+function show(id) {
+  ['v-home', 'v-form', 'v-admin'].forEach(v => $(v).classList.toggle('hide', v !== id));
+  $('main').classList.toggle('wide', id === 'v-admin');
+  window.scrollTo(0, 0);
+}
+function msg(el, type, text) { el.innerHTML = text ? '<div class="msg ' + type + '">' + esc(text) + '</div>' : ''; }
+
+/* ---------- 首頁 ---------- */
+const S = { id: '', name: '', dept: '', found: false, isNew: false, record: null, isAdmin: false, pwd: '' };
+let lookupTimer = null, lookupSeq = 0;
+
+function resetHome() {
+  S.found = false; S.record = null; S.isAdmin = false; S.isNew = false;
+  $('hName').value = ''; $('hDept').value = '';
+  $('hName').readOnly = true; $('hDept').readOnly = true;
+  $('newBox').classList.add('hide'); $('newCk').checked = false;
+  $('btnAdmin').classList.add('hide');
+  msg($('hMsg'), '', ''); updateGo();
+}
+function updateGo() {
+  const id = $('empId').value.trim();
+  const ok = id && (S.found || (S.isNew && $('hName').value.trim() && $('hDept').value.trim()));
+  $('btnGo').disabled = !ok;
+}
+$('empId').addEventListener('input', () => {
+  clearTimeout(lookupTimer);
+  resetHome();
+  const id = $('empId').value.trim();
+  if (id.length < 3) return;
+  lookupTimer = setTimeout(() => doLookup(id), 450);
+});
+async function doLookup(id) {
+  const seq = ++lookupSeq;
+  msg($('hMsg'), 'info', '查詢中…');
+  try {
+    const r = await api('lookup', { empId: id });
+    if (seq !== lookupSeq) return;
+    S.id = id;
+    if (r.found) {
+      S.found = true; S.name = r.name; S.dept = r.dept; S.record = r.record; S.isAdmin = !!r.isAdmin;
+      $('hName').value = r.name; $('hDept').value = r.dept;
+      msg($('hMsg'), 'ok', r.record ? '已有建檔資料，進入後可更新。' : '尚未填寫，請繼續填寫資料。');
+      $('btnAdmin').classList.toggle('hide', !(r.isAdmin && id === CONFIG.ADMIN_ID));
+    } else {
+      $('newBox').classList.remove('hide');
+      msg($('hMsg'), 'err', '查無此工號。若為新進或名單遺漏，可勾選「新建」自行建立。');
+    }
+  } catch (e) { if (seq === lookupSeq) msg($('hMsg'), 'err', e.message); }
+  updateGo();
+}
+$('newCk').addEventListener('change', () => {
+  S.isNew = $('newCk').checked;
+  $('hName').readOnly = !S.isNew; $('hDept').readOnly = !S.isNew;
+  $('hName').placeholder = S.isNew ? '請輸入姓名' : '輸入工號後自動帶入';
+  $('hDept').placeholder = S.isNew ? '請輸入部門' : '輸入工號後自動帶入';
+  updateGo();
+});
+['hName', 'hDept'].forEach(i => $(i).addEventListener('input', updateGo));
+$('empId').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(lookupTimer); const id = $('empId').value.trim(); if (id) doLookup(id); } });
+
+$('btnGo').onclick = () => {
+  S.id = $('empId').value.trim();
+  S.name = $('hName').value.trim(); S.dept = $('hDept').value.trim();
+  openForm();
+};
+
+/* ---------- 填寫頁 ---------- */
+let verifiedMail = '';   // 本次工作階段已通過驗證的 MAIL
+let savedVerifiedMail = '';
+function openForm() {
+  $('fDept').value = S.dept; $('fId').value = S.id; $('fName').value = S.name;
+  const rec = S.record;
+  $('fPhone').value = rec ? rec.phone : '';
+  $('fAddr').value = rec ? rec.addr : '';
+  $('fMail').value = rec ? rec.mail : '';
+  savedVerifiedMail = rec && rec.status === '已驗證' ? rec.mail.toLowerCase() : '';
+  verifiedMail = '';
+  $('btnSave').textContent = rec ? '更新' : '送出';
+  $('otpRow').classList.add('hide'); $('otpCode').value = '';
+  msg($('fMsg'), '', ''); clearBad(); refreshMailState();
+  show('v-form');
+}
+function clearBad() { ['fPhone', 'fAddr', 'fMail'].forEach(i => $(i).classList.remove('bad')); }
+function mailOk() {
+  const m = $('fMail').value.trim().toLowerCase();
+  return m && (m === verifiedMail || m === savedVerifiedMail);
+}
+function refreshMailState() {
+  const m = $('fMail').value.trim();
+  const st = $('mailState');
+  if (!m) { st.textContent = ''; st.style.color = ''; }
+  else if (mailOk()) { st.textContent = '✔ 此 MAIL 已驗證'; st.style.color = 'var(--ok)'; }
+  else { st.textContent = '尚未驗證，請按「寄送驗證碼」'; st.style.color = 'var(--warn)'; }
+  $('btnOtp').disabled = !MAIL_RE.test(m) || mailOk();
+}
+$('fMail').addEventListener('input', () => { $('otpRow').classList.add('hide'); refreshMailState(); });
+
+let otpCool = 0;
+$('btnOtp').onclick = async () => {
+  const mail = $('fMail').value.trim();
+  if (!MAIL_RE.test(mail)) { $('fMail').classList.add('bad'); return msg($('fMsg'), 'err', '個人MAIL 格式不正確'); }
+  $('btnOtp').disabled = true;
+  try {
+    await api('sendOtp', { empId: S.id, mail });
+    $('otpRow').classList.remove('hide'); $('otpCode').focus();
+    msg($('fMsg'), 'info', '驗證碼已寄出，請至信箱收信（10 分鐘內有效，若沒收到請查看垃圾郵件）。');
+    otpCool = 60;
+    const t = setInterval(() => { otpCool--; $('btnOtp').textContent = otpCool > 0 ? '重新寄送（' + otpCool + '）' : '重新寄送驗證碼'; if (otpCool <= 0) { clearInterval(t); refreshMailState(); } }, 1000);
+  } catch (e) { msg($('fMsg'), 'err', e.message); refreshMailState(); }
+};
+$('btnVerify').onclick = async () => {
+  const mail = $('fMail').value.trim(), code = $('otpCode').value.trim();
+  if (!/^\d{6}$/.test(code)) return msg($('fMsg'), 'err', '請輸入 6 位數驗證碼');
+  try {
+    await api('verifyOtp', { empId: S.id, mail, code });
+    verifiedMail = mail.toLowerCase();
+    $('otpRow').classList.add('hide');
+    msg($('fMsg'), 'ok', 'MAIL 驗證成功，可以送出了。');
+    refreshMailState();
+  } catch (e) { msg($('fMsg'), 'err', e.message); }
+};
+
+$('btnSave').onclick = async () => {
+  clearBad();
+  const phone = $('fPhone').value.replace(/[-\s]/g, ''), addr = $('fAddr').value.trim(), mail = $('fMail').value.trim();
+  const miss = [];
+  if (!phone) { miss.push('手機'); $('fPhone').classList.add('bad'); }
+  if (!addr) { miss.push('通訊地址'); $('fAddr').classList.add('bad'); }
+  if (!mail) { miss.push('個人MAIL'); $('fMail').classList.add('bad'); }
+  if (miss.length) return msg($('fMsg'), 'err', '請填寫下列欄位後再' + $('btnSave').textContent + '：' + miss.join('、'));
+  if (!PHONE_RE.test(phone)) { $('fPhone').classList.add('bad'); return msg($('fMsg'), 'err', '手機格式應為 09 開頭共 10 碼'); }
+  if (!MAIL_RE.test(mail)) { $('fMail').classList.add('bad'); return msg($('fMsg'), 'err', '個人MAIL 格式不正確'); }
+  if (!mailOk()) { $('fMail').classList.add('bad'); return msg($('fMsg'), 'err', '請先完成個人MAIL 驗證（按「寄送驗證碼」並輸入收到的驗證碼）'); }
+  $('btnSave').disabled = true;
+  try {
+    const r = await api('save', { empId: S.id, name: S.name, dept: S.dept, phone, addr, mail });
+    S.record = { phone, addr, mail, status: '已驗證' };
+    S.found = true;
+    $('btnSave').textContent = '更新';
+    msg($('fMsg'), 'ok', r.updated ? '✔ 資料已更新完成。' : '✔ 資料已送出完成，謝謝您。');
+    savedVerifiedMail = mail.toLowerCase();
+  } catch (e) { msg($('fMsg'), 'err', e.message); }
+  $('btnSave').disabled = false;
+};
+$('btnBack').onclick = () => { $('empId').value = ''; resetHome(); show('v-home'); };
+
+/* ---------- 人資管理 ---------- */
+let A = { list: [], f: 'all', q: '', sel: new Set() };
+$('btnAdmin').onclick = async () => {
+  const pwd = prompt('請輸入人資管理密碼');
+  if (!pwd) return;
+  S.pwd = pwd;
+  try { await loadAdmin(); $('aWho').textContent = S.id + ' ' + S.name; show('v-admin'); }
+  catch (e) { alert(e.message); S.pwd = ''; }
+};
+$('aBack').onclick = () => { S.pwd = ''; $('empId').value = ''; resetHome(); show('v-home'); };
+
+async function loadAdmin() {
+  const r = await api('adminList', { empId: S.id, pwd: S.pwd });
+  A.list = r.list; A.sel.clear(); $('aAll').checked = false;
+  $('aQuota').textContent = '今日剩餘寄信額度：' + r.quota;
+  renderAdmin();
+}
+function statusTag(x) {
+  if (!x.filled) return '<span class="tag t-no">未填</span>';
+  const s = x.status;
+  return '<span class="tag ' + (s === '已驗證' ? 't-ok' : s === '退信' ? 't-bad' : 't-wait') + '">' + esc(s || '未驗證') + '</span>';
+}
+function filtered() {
+  const q = A.q.toLowerCase();
+  return A.list.filter(x => {
+    if (A.f === 'done' && !x.filled) return false;
+    if (A.f === 'todo' && x.filled) return false;
+    if (A.f === 'unv' && !(x.filled && x.status !== '已驗證')) return false;
+    return !q || (x.empId + x.name + x.dept).toLowerCase().includes(q);
+  });
+}
+function renderAdmin() {
+  const all = A.list.length, done = A.list.filter(x => x.filled).length;
+  const unv = A.list.filter(x => x.filled && x.status !== '已驗證').length;
+  $('aStats').innerHTML = [['全部', all], ['已填', done], ['未填', all - done], ['MAIL 未確認', unv]]
+    .map(([k, v]) => '<div class="stat"><b>' + v + '</b><span>' + k + '</span></div>').join('');
+  const rows = filtered();
+  $('aBody').innerHTML = rows.map(x =>
+    '<tr><td><input type="checkbox" class="rk" data-id="' + esc(x.empId) + '"' + (A.sel.has(x.empId) ? ' checked' : '') + (x.filled ? '' : ' disabled') + '></td>' +
+    '<td>' + esc(x.empId) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.dept) + (x.inRoster ? '' : ' <span class="tag t-no">自建</span>') + '</td>' +
+    '<td>' + esc(x.phone) + '</td><td>' + esc(x.addr) + '</td><td>' + esc(x.mail) + '</td><td>' + statusTag(x) + '</td><td>' + esc(x.utime) + '</td></tr>'
+  ).join('') || '<tr><td colspan="9" class="note">沒有資料</td></tr>';
+  document.querySelectorAll('.rk').forEach(c => c.onchange = () => { c.checked ? A.sel.add(c.dataset.id) : A.sel.delete(c.dataset.id); });
+}
+$('aTabs').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  A.f = b.dataset.f;
+  document.querySelectorAll('#aTabs button').forEach(x => x.classList.toggle('on', x === b));
+  renderAdmin();
+};
+$('aSearch').oninput = e => { A.q = e.target.value.trim(); renderAdmin(); };
+$('aAll').onchange = e => {
+  filtered().filter(x => x.filled).forEach(x => e.target.checked ? A.sel.add(x.empId) : A.sel.delete(x.empId));
+  renderAdmin();
+};
+async function sendTest(ids) {
+  if (!ids.length) return msg($('aMsg'), 'err', '沒有可寄送的對象');
+  if (!confirm('將寄送測試信給 ' + ids.length + ' 位員工，確定嗎？')) return;
+  msg($('aMsg'), 'info', '寄送中，請稍候…');
+  try {
+    const r = await api('adminSendTest', { empId: S.id, pwd: S.pwd, empIds: ids });
+    msg($('aMsg'), 'ok', '已寄出 ' + r.sent + ' 封' + (r.skipped.length ? '；略過：' + r.skipped.join('、') : ''));
+    await loadAdmin();
+  } catch (e) { msg($('aMsg'), 'err', e.message); }
+}
+$('aSendSel').onclick = () => sendTest([...A.sel]);
+$('aSendUnv').onclick = () => sendTest(A.list.filter(x => x.filled && x.status !== '已驗證').map(x => x.empId));
+$('aBounce').onclick = async () => {
+  try {
+    const r = await api('adminCheckBounce', { empId: S.id, pwd: S.pwd });
+    msg($('aMsg'), 'ok', '檢查完成，新增標示退信 ' + r.bounced + ' 筆');
+    await loadAdmin();
+  } catch (e) { msg($('aMsg'), 'err', e.message); }
+};
+$('aCsv').onclick = () => {
+  const h = ['工號', '姓名', '部門', '手機', '通訊地址', '個人MAIL', 'MAIL狀態', '更新時間'];
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lines = [h.map(q).join(',')].concat(filtered().map(x =>
+    [x.empId, x.name, x.dept, x.phone, x.addr, x.mail, x.filled ? (x.status || '未驗證') : '未填', x.utime].map(q).join(',')));
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = '人事資料填寫狀況.csv'; a.click();
+};
+</script>
+</body>
+</html>
